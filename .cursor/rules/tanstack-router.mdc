@@ -1,0 +1,50 @@
+---
+description: 
+globs: src/routes/**/*.tsx,src/routes/**/*.ts
+alwaysApply: false
+---
+description: "TanStack Router file-based routing guidelines"
+globs: [src/routes/**/*.tsx, src/routes/**/*.ts]
+alwaysApply: false
+---
+
+# TanStack Router Guidelines
+
+## File Structure Rules
+- Layout Routes: `dashboard.tsx` defines layout for `/dashboard/*`
+- Index Routes: `dashboard.index.tsx` for exact `/dashboard` match
+- Dynamic Routes: `$id.tsx` or `dashboard.$id.tsx`
+- Pathless Layouts: `_layout.tsx` wraps without URL segment
+
+## Route Configuration
+
+// ✅ CORRECT: Use createFileRoute
+export const Route = createFileRoute('/dashboard/projects')({
+  component: ProjectsComponent,
+  loader: async () => {
+    // Data loading logic
+  }
+})
+
+// ❌ WRONG: Don't use createRoute for file-based routing
+
+
+## Link Usage
+
+// ✅ CORRECT: Use from prop for strict type inference
+<Link from="/dashboard" to="/dashboard/projects" />
+
+// ⚠️ AVOID: Loose inference
+<Link to="/dashboard/projects" />
+
+## Hook Usage
+
+// ✅ CORRECT: Use from prop for performance
+const search = useSearch({ from: '/dashboard' })
+const params = useParams({ from: '/dashboard' })
+
+
+
+
+
+

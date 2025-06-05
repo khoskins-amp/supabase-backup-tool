@@ -1,0 +1,51 @@
+---
+description: 
+globs: **/*.tsx, **/*.ts
+alwaysApply: false
+---
+---
+description: "Error handling patterns for React and tRPC"
+globs: [**/*.tsx, **/*.ts]
+alwaysApply: false
+---
+
+# Error Handling Guidelines
+
+## API Error Boundaries
+```tsx
+function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallback={<div>Something went wrong</div>}
+      onError={(error) => console.error(error)}
+    >
+      {children}
+    </ErrorBoundary>
+  )
+}
+```
+
+## Query Error States
+```tsx
+function DataComponent() {
+  const query = useQuery(trpc.data.get.queryOptions())
+  
+  if (query.isPending) return <Skeleton />
+  if (query.error) return <Alert variant="destructive">{query.error.message}</Alert>
+  
+  return <div>{query.data}</div>
+}
+```
+
+## Async Validation
+```tsx
+const schema = z.string().refine(async (val) => val.length <= 8);
+
+await schema.parseAsync("hello");
+// => "hello"
+
+
+
+
+
+```

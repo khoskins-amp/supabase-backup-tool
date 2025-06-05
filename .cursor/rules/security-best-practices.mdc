@@ -1,0 +1,202 @@
+# Security Best Practices for Supabase Backup Tool
+
+## Critical Security Requirements
+
+### ⚠️ NEVER Store Sensitive Data in Plain Text
+- Database URLs with passwords
+- Supabase service keys  
+- Supabase anonymous keys
+- Any authentication tokens
+
+## Application-Level Encryption Implementation
+
+### 1. Core Security Principles
+
+**Use AES-256-GCM Encryption:**
+- Authenticated encryption prevents tampering
+- Each field gets unique IV (Initialization Vector)
+- Salt-based key derivation for additional security
+- Environment-based master key storage
+
+### 2. Master Key Management
+
+**Environment Variable Setup:**
+```bash
+# Generate a cryptographically secure master key (run once)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Add to .env file (NEVER commit this key)
+ENCRYPTION_MASTER_KEY=your_generated_64_character_hex_key_here
+```
+
+**Production Environment:**
+- Store master key in secure environment variables
+- Use key management services (AWS KMS, Azure Key Vault, etc.)
+- Never hardcode keys in source code
+- Rotate keys periodically
+
+### 3. Encrypted Fields in Database
+
+**Projects Table - Sensitive Fields:**
+- `databaseUrl` - Contains password, must be encrypted
+- `supabaseServiceKey` - API key, must be encrypted  
+- `supabaseAnonKey` - API key, must be encrypted
+
+**Storage Format:**
+```json
+{
+  "encrypted": "hex_encoded_ciphertext",
+  "iv": "hex_encoded_iv",
+  "salt": "hex_encoded_salt", 
+  "authTag": "hex_encoded_auth_tag"
+}
+```
+
+### 4. Implementation Guidelines
+
+**Encryption Service Usage:**
+```typescript
+import { encryptForDatabase, decryptFromDatabase } from '../lib/crypto';
+
+// Before saving to database
+const encryptedUrl = await encryptForDatabase(plainTextUrl);
+
+// After reading from database  
+const plainTextUrl = await decryptFromDatabase(encryptedJson);
+```
+
+**Form Handling:**
+- Accept plain text input from users
+- Encrypt before database storage
+- Decrypt when displaying/using data
+- Never log decrypted sensitive values
+
+### 5. Security Validation Checklist
+
+**Before Production:**
+- [ ] Master key is stored securely in environment variables
+- [ ] All database URLs are encrypted in database
+- [ ] All API keys are encrypted in database
+- [ ] No sensitive data appears in logs
+- [ ] Encryption key is not in source code or version control
+- [ ] Database backups are also secured
+- [ ] Error messages don't expose sensitive data
+
+### 6. Migration Strategy
+
+**For Existing Data:**
+1. Create migration script to encrypt existing plain text data
+2. Test encryption/decryption in staging environment
+3. Run migration during maintenance window
+4. Verify all data can be decrypted correctly
+5. Monitor for decryption errors post-migration
+
+**Migration Script Example:**
+```typescript
+// scripts/encrypt-existing-data.ts
+import { db } from '../src/lib/db/client';
+import { projects } from '../src/lib/db/projects.schema';
+import { encryptForDatabase } from '../src/lib/crypto';
+
+async function migrateExistingData() {
+  const allProjects = await db.select().from(projects);
+  
+  for (const project of allProjects) {
+    const updateData: any = {};
+    
+    // Only encrypt if not already encrypted
+    if (project.databaseUrl && !isEncrypted(project.databaseUrl)) {
+      updateData.databaseUrl = await encryptForDatabase(project.databaseUrl);
+    }
+    
+    if (project.supabaseServiceKey && !isEncrypted(project.supabaseServiceKey)) {
+      updateData.supabaseServiceKey = await encryptForDatabase(project.supabaseServiceKey);
+    }
+    
+    if (project.supabaseAnonKey && !isEncrypted(project.supabaseAnonKey)) {
+      updateData.supabaseAnonKey = await encryptForDatabase(project.supabaseAnonKey);
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      await db.update(projects)
+        .set(updateData)
+        .where(eq(projects.id, project.id));
+    }
+  }
+}
+```
+
+### 7. Additional Security Measures
+
+**Database Level:**
+- Use SSL/TLS connections to database
+- Implement proper access controls
+- Regular security audits
+- Monitor for unusual access patterns
+
+**Application Level:**
+- Input validation and sanitization
+- Rate limiting on API endpoints
+- CSRF protection
+- Secure HTTP headers (use Helmet.js)
+- Content Security Policy
+
+**Infrastructure Level:**
+- Secure environment variable management
+- Network segmentation
+- Regular dependency updates
+- Vulnerability scanning
+
+### 8. Emergency Procedures
+
+**If Master Key is Compromised:**
+1. Generate new master key immediately
+2. Re-encrypt all sensitive data with new key
+3. Update environment variables
+4. Audit access logs for unauthorized access
+5. Notify relevant stakeholders
+
+**If Database is Compromised:**
+1. Encrypted data provides protection layer
+2. Rotate all API keys for affected projects
+3. Force re-authentication for all users
+4. Review and update security measures
+
+### 9. Testing Security
+
+**Unit Tests:**
+- Verify encryption/decryption functions work correctly
+- Test with various input types and edge cases
+- Ensure authentication tags prevent tampering
+
+**Integration Tests:**
+- Test end-to-end data flow with encryption
+- Verify sensitive data never appears in logs
+- Test error handling for corrupted encrypted data
+
+**Security Testing:**
+- SQL injection prevention testing
+- XSS prevention testing
+- Rate limiting effectiveness
+- Authentication bypass attempts
+
+### 10. Compliance Considerations
+
+**Data Protection:**
+- GDPR compliance for EU users
+- SOC 2 requirements for enterprise
+- Industry-specific regulations (HIPAA, etc.)
+
+**Audit Trail:**
+- Log encryption/decryption operations (without sensitive data)
+- Monitor for failed decryption attempts
+- Track key rotation events
+- Access logging for administrative functions
+
+## Remember: Security is a Process, Not a Feature
+
+- Regular security reviews
+- Stay updated on security best practices
+- Monitor security advisories for dependencies  
+- Plan for security incidents
+- Train team on security procedures

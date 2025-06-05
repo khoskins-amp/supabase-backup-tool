@@ -1,0 +1,40 @@
+---
+description: 
+globs: **/*.tsx, **/*.ts
+alwaysApply: false
+---
+---
+description: "Performance optimization guidelines for TanStack ecosystem"
+globs: [**/*.tsx, **/*.ts]
+alwaysApply: false
+---
+
+# Performance Guidelines
+
+## TanStack Router Performance
+- Always use `from` prop in Link and hooks for strict type inference
+- Avoid `strict: false` in hooks (impacts performance)
+- Use lazy loading for route components when needed
+
+## TanStack Query Best Practices
+- Set appropriate `staleTime` for SSR (60+ seconds)
+- Use `queryOptions` helper for reusable query definitions
+- Implement proper error boundaries
+
+## Query Invalidation
+```tsx
+// ✅ CORRECT: Use queryFilter for invalidation
+await queryClient.invalidateQueries(
+  trpc.user.list.queryFilter({ status: 'active' })
+)
+
+// ✅ CORRECT: Use queryKey for specific queries
+await queryClient.invalidateQueries({
+  queryKey: trpc.user.getById.queryKey({ id: '1' })
+})
+```
+## TailwindCSS Optimization
+- Use TailwindCSS v4 Vite plugin (faster than PostCSS)
+- Define custom properties in @theme for design system
+
+- Avoid inline styles, prefer Tailwind classes

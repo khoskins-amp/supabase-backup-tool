@@ -1,48 +1,54 @@
-import * as React from 'react'
-import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
+import { AppSidebar } from '@/components/app-sidebar'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { Separator } from '@/components/ui/separator'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 
 export const Route = createFileRoute('/dashboard')({
-  component: DashboardComponent,
+  component: DashboardLayoutComponent,
 })
 
-function DashboardComponent() {
+function DashboardLayoutComponent() {
   return (
-    <>
-      <div className="flex items-center border-b">
-        <h2 className="text-xl p-2">Dashboard</h2>
-        <Link
-          to="/dashboard/posts/$postId"
-          params={{
-            postId: '3',
-          }}
-          className="py-1 px-2 text-xs bg-blue-500 text-white rounded-full"
-        >
-          1 New Invoice
-        </Link>
-      </div>
-      <div className="flex flex-wrap divide-x">
-        {(
-          [
-            ['.', 'Summary'],
-            ['/dashboard/posts', 'Posts'],
-          ] as const
-        ).map(([to, label]) => {
-          return (
-            <Link
-              from={Route.fullPath}
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === '.' }}
-              activeProps={{ className: `font-bold` }}
-              className="p-2"
-            >
-              {label}
-            </Link>
-          )
-        })}
-      </div>
-      <hr />
-      <Outlet />
-    </>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbLink asChild>
+                    <Link to="/dashboard">
+                      Dashboard
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden md:block" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Overview</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <Outlet />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

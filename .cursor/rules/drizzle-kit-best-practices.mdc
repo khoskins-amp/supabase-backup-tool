@@ -1,0 +1,286 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Drizzle Kit Best Practices
+
+## Core Workflow: Generate → Migrate (NOT Push)
+
+### ✅ CORRECT: Production Workflow
+```bash
+# 1. Generate migration files from schema changes
+pnpm drizzle-kit generate [--name=descriptive_name]
+
+# 2. Review generated SQL migration files
+# 3. Apply migrations to database
+pnpm drizzle-kit migrate
+
+# 4. Commit migration files to git
+git add drizzle/
+git commit -m "feat: add user profile schema"
+```
+
+### ⚠️ DEVELOPMENT ONLY: Push Workflow
+```bash
+# Only use for rapid prototyping - bypasses migration files
+pnpm drizzle-kit push
+```
+
+## When to Use Each Command
+
+### `drizzle-kit generate`
+- **Always use** for schema changes in production
+- Creates versioned migration files
+- Enables code review of database changes
+- Supports team collaboration
+- Allows rollbacks and migration history
+
+### `drizzle-kit migrate` 
+- **Always use** to apply generated migrations
+- Tracks migration state in database
+- Safe for production deployments
+- Can be automated in CI/CD pipelines
+
+### `drizzle-kit push`
+- **Only use** for local development/experimentation
+- **Never use** in production or shared environments
+- Bypasses migration files completely
+- No version control or collaboration support
+
+## Migration File Management
+
+### Naming Conventions
+```bash
+# Use descriptive names for clarity
+drizzle-kit generate --name=add_user_profiles
+drizzle-kit generate --name=create_backup_jobs
+drizzle-kit generate --name=add_project_encryption
+
+# Avoid generic names
+drizzle-kit generate --name=update  ❌
+drizzle-kit generate --name=changes ❌
+```
+
+### File Structure
+```
+📦 project-root/
+├── drizzle/
+│   ├── _meta/               # Migration metadata
+│   ├── 0000_init.sql       # Initial schema
+│   ├── 0001_add_users.sql  # User table migration
+│   └── 0002_add_jobs.sql   # Jobs table migration
+├── src/lib/db/
+│   ├── *.schema.ts         # Schema definitions
+│   └── client.ts           # Database connection
+└── drizzle.config.ts       # Drizzle Kit configuration
+```
+
+## Configuration Best Practices
+
+### drizzle.config.ts Structure
+```typescript
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  // Essential configuration
+  dialect: "postgresql", // or "mysql", "sqlite"
+  schema: "./src/lib/db/*.schema.ts",
+  out: "./drizzle",
+  
+  // Database credentials
+  dbCredentials: {
+    // Use environment variables for security
+    url: process.env.DATABASE_URL!,
+    // OR individual properties for PostgreSQL
+    host: process.env.PGHOST!,
+    database: process.env.PGDATABASE!,
+    user: process.env.PGUSER!,
+    password: process.env.PGPASSWORD!,
+    ssl: true,
+  },
+  
+  // Optional: Migration customization
+  migrations: {
+    table: "drizzle_migrations",     // Custom migration table name
+    schema: "public",                 // PostgreSQL schema for migrations
+  },
+  
+  // Development settings
+  verbose: true,   // Detailed logging
+  strict: true,    // Strict mode for safety
+});
+```
+
+## Environment-Specific Workflows
+
+### Development
+```bash
+# Make schema changes in *.schema.ts files
+# Generate migration
+pnpm drizzle-kit generate --name=feature_name
+
+# Review generated SQL in drizzle/ folder
+# Apply to local database
+pnpm drizzle-kit migrate
+```
+
+### Production Deployment
+```bash
+# In CI/CD pipeline or deployment script
+export DATABASE_URL="$PRODUCTION_DATABASE_URL"
+
+# Apply only - never generate in production
+pnpm drizzle-kit migrate
+
+# OR: Use programmatic migration in app startup
+# See: Runtime Migration Patterns below
+```
+
+## Runtime Migration Patterns
+
+### Application Startup Migration
+```typescript
+// src/lib/db/migrate.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+
+export async function runMigrations() {
+  const connection = postgres(process.env.DATABASE_URL!);
+  const db = drizzle(connection);
+  
+  // Apply all pending migrations
+  await migrate(db, { 
+    migrationsFolder: "./drizzle" 
+  });
+  
+  await connection.end();
+}
+
+// In your main application file
+async function startApp() {
+  await runMigrations();
+  // ... start your application
+}
+```
+
+## Schema Design Patterns
+
+### Proper Table Definitions
+```typescript
+// ✅ CORRECT: Well-structured schema
+import { pgTable, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { createId } from "@paralleldrive/cuid2";
+
+export const projects = pgTable("projects", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  name: text("name").notNull(),
+  databaseUrl: text("database_url").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+```
+
+### Foreign Key Relationships
+```typescript
+// Define relationships properly
+export const backups = pgTable("backups", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  // ... other fields
+});
+```
+
+## Common Pitfalls to Avoid
+
+### ❌ DON'T: Mix push and migrate workflows
+```bash
+drizzle-kit generate  
+drizzle-kit push      # ❌ This bypasses generated migration!
+```
+
+### ❌ DON'T: Generate migrations in production
+```bash
+# In production deployment ❌
+drizzle-kit generate  # Never generate in production
+drizzle-kit migrate   # Only migrate in production
+```
+
+### ❌ DON'T: Ignore migration files in git
+```gitignore
+# ❌ WRONG: Don't ignore migration files
+drizzle/
+*.sql
+```
+
+### ✅ DO: Include migration files in version control
+```gitignore
+# ✅ CORRECT: Track migrations, exclude data/logs
+drizzle/**/*.sql      # Include migration SQL files
+!drizzle/data/        # Exclude actual data
+!drizzle/logs/        # Exclude logs
+```
+
+## Emergency Procedures
+
+### Rolling Back Migrations
+```bash
+# Drizzle doesn't have built-in rollback
+# You need to:
+# 1. Create a new migration that reverses changes
+drizzle-kit generate --name=rollback_feature_x
+
+# 2. Manually write the reverse SQL in the generated file
+# 3. Apply the rollback migration
+drizzle-kit migrate
+```
+
+### Schema Drift Detection
+```bash
+# Pull current database schema to compare
+drizzle-kit pull
+
+# Compare with your TypeScript schema files
+# Resolve any differences before proceeding
+```
+
+## Multi-Environment Configuration
+
+### Separate Configs for Different Environments
+```typescript
+// drizzle-dev.config.ts
+export default defineConfig({
+  dialect: "postgresql",
+  schema: "./src/lib/db/*.schema.ts",
+  out: "./drizzle",
+  dbCredentials: { url: process.env.DEV_DATABASE_URL! },
+});
+
+// drizzle-prod.config.ts  
+export default defineConfig({
+  dialect: "postgresql", 
+  schema: "./src/lib/db/*.schema.ts",
+  out: "./drizzle",
+  dbCredentials: { url: process.env.PROD_DATABASE_URL! },
+});
+```
+
+```bash
+# Use specific configs
+drizzle-kit migrate --config=drizzle-dev.config.ts
+drizzle-kit migrate --config=drizzle-prod.config.ts
+```
+
+## Key Principles
+
+1. **Migration files are source of truth** - Always commit them to git
+2. **Generate in development, migrate everywhere** - Never generate in production
+3. **Review before applying** - Always check generated SQL
+4. **One-way workflow** - Don't mix push and migrate commands
+5. **Environment isolation** - Use separate databases for dev/staging/prod
+6. **Backup before migrating** - Especially in production
+7. **Test migrations** - Apply to staging first

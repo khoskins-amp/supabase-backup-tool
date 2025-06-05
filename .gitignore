@@ -14,6 +14,14 @@ yarn.lock
 /server/build
 /public/build
 .vinxi
+
+# Database and backup files
+/data/*.db
+/data/*.db-*
+/data/backups/**
+/data/logs/**
+!/data/.gitkeep
+
 # Sentry Config File
 .env.sentry-build-plugin
 /test-results/

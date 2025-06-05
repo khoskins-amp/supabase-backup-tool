@@ -1,0 +1,50 @@
+---
+description: 
+globs: src/styles/**/*.css,**/*.css
+alwaysApply: false
+---
+---
+description: "TailwindCSS v4+ configuration and usage guidelines"
+globs: [src/styles/**/*.css, **/*.tsx, **/*.css]
+alwaysApply: false
+---
+
+# TailwindCSS v4+ Guidelines
+
+## CSS-First Configuration
+Use @theme directive instead of tailwind.config.js:
+
+```css
+/* src/styles/globals.css */
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Satoshi", "sans-serif";
+  --breakpoint-3xl: 120rem;
+  --color-brand-50: oklch(0.99 0 0);
+  --color-brand-500: oklch(0.84 0.18 117.33);
+  --ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+}
+```
+
+## Rules
+- **NO PostCSS config needed** - TailwindCSS v4 handles everything
+- **Use @theme** instead of tailwind.config.js for design tokens
+- **Use oklch()** for color definitions
+- **Leverage CSS variables** - all theme values become CSS custom properties
+
+## Vite Configuration
+```ts
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss() // Use dedicated Vite plugin
+  ]
+
+}
+
+
+
+```

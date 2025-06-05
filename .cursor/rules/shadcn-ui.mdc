@@ -1,0 +1,51 @@
+---
+description: 
+globs: src/components/**/*.tsx
+alwaysApply: false
+---
+---
+description: "shadcn/ui component usage and composition guidelines"
+globs: ["src/components/**/*.tsx"]
+alwaysApply: false
+---
+
+# shadcn/ui Component Guidelines
+
+## Import Rules
+```tsx
+// ✅ CORRECT: Import from @/components/ui
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+```
+
+## Component Composition
+```tsx
+// ✅ CORRECT: Use component composition
+function MyCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Title</CardTitle>
+      </CardHeader>
+      <CardContent>
+        Content here
+      </CardContent>
+    </Card>
+  )
+}
+
+// ❌ WRONG: Don't modify ui components directly
+// Instead, create wrapper components or use className prop
+```
+
+## Path Alias Setup
+Ensure tsconfig.json has:
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+
+}

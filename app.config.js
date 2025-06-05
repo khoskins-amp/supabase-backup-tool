@@ -1,6 +1,8 @@
 import { createApp } from 'vinxi'
 import reactRefresh from '@vitejs/plugin-react'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
+import tailwindcss from '@tailwindcss/vite'
+import viteTsConfigPaths from 'vite-tsconfig-paths'
 
 export default createApp({
   server: {
@@ -21,7 +23,11 @@ export default createApp({
       base: '/trpc',
       handler: './trpc-server.handler.ts',
       target: 'server',
-      plugins: () => [],
+      plugins: () => [
+        viteTsConfigPaths({
+          projects: ['./tsconfig.json']
+        }),
+      ],
     },
     {
       type: 'spa',
@@ -29,6 +35,9 @@ export default createApp({
       handler: './index.html',
       target: 'browser',
       plugins: () => [
+        viteTsConfigPaths({
+          projects: ['./tsconfig.json']
+        }),
         TanStackRouterVite({
           target: 'react',
           autoCodeSplitting: true,
@@ -36,6 +45,7 @@ export default createApp({
           generatedRouteTree: './src/routeTree.gen.ts',
         }),
         reactRefresh(),
+        tailwindcss(),
       ],
     },
   ],
