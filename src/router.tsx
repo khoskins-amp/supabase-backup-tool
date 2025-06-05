@@ -1,29 +1,11 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createTRPCClient, httpBatchLink } from '@trpc/client'
-import { createTRPCOptionsProxy } from '@trpc/tanstack-react-query'
-
+import { QueryClientProvider } from '@tanstack/react-query'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
 import { Spinner } from './routes/-components/spinner'
-import type { AppRouter } from '../trpc-server.handler'
-
-export const queryClient = new QueryClient()
-
-export const trpc = createTRPCOptionsProxy<AppRouter>({
-  client: createTRPCClient({
-    links: [
-      httpBatchLink({
-        // since we are using Vinxi, the server is running on the same port,
-        // this means in dev the url is `http://localhost:3000/trpc`
-        // and since its from the same origin, we don't need to explicitly set the full URL
-        url: '/trpc',
-      }),
-    ],
-  }),
-  queryClient,
-})
+// Import the proper tRPC setup from our lib
+import { queryClient, trpc } from './lib/trpc'
 
 export function createRouter() {
   const router = createTanStackRouter({

@@ -1,11 +1,12 @@
+import '../styles.css'
 import {
-  Link,
   Outlet,
   createRootRouteWithContext,
   useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { ThemeProvider } from '@/components/theme-provider'
 
 import { Spinner } from './-components/spinner'
 import type { TRPCOptionsProxy } from '@trpc/tanstack-react-query'
@@ -25,57 +26,25 @@ function RootComponent() {
   const isFetching = useRouterState({ select: (s) => s.isLoading })
 
   return (
-    <>
-      <div className={`min-h-screen flex flex-col`}>
-        <div className={`flex items-center border-b gap-2`}>
-          <h1 className={`text-3xl p-2`}>With tRPC + TanStack Query</h1>
-          {/* Show a global spinner when the router is transitioning */}
-          <div
-            className={`text-3xl duration-300 delay-0 opacity-0 ${
-              isFetching ? ` duration-1000 opacity-40` : ''
-            }`}
-          >
-            <Spinner />
+    <ThemeProvider defaultTheme="system" storageKey="supabase-backup-theme">
+      <div className="min-h-screen">
+        {/* Global loading indicator */}
+        {isFetching && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm border rounded-lg px-3 py-2 shadow-lg">
+              <Spinner />
+              <span className="text-sm text-muted-foreground">Loading...</span>
+            </div>
           </div>
-        </div>
-        <div className={`flex-1 flex`}>
-          <div className={`divide-y w-56`}>
-            {(
-              [
-                ['/', 'Home'],
-                ['/dashboard', 'Dashboard'],
-              ] as const
-            ).map(([to, label]) => {
-              return (
-                <div key={to}>
-                  <Link
-                    to={to}
-                    activeOptions={
-                      {
-                        // If the route points to the root of it's parent,
-                        // make sure it's only active if it's exact
-                        // exact: to === '.',
-                      }
-                    }
-                    preload="intent"
-                    className={`block py-2 px-3 text-blue-700`}
-                    // Make "active" links bold
-                    activeProps={{ className: `font-bold` }}
-                  >
-                    {label}
-                  </Link>
-                </div>
-              )
-            })}
-          </div>
-          <div className={`flex-1 border-l border-gray-200`}>
-            {/* Render our first route match */}
-            <Outlet />
-          </div>
-        </div>
+        )}
+        
+        {/* Main content */}
+        <Outlet />
       </div>
+      
+      {/* Dev tools */}
       <TanStackRouterDevtools position="bottom-left" />
       <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
-    </>
+    </ThemeProvider>
   )
 }

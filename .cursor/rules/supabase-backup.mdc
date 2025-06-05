@@ -1,0 +1,32 @@
+---
+description: 
+globs: src/db/**/*.ts, src/server/**/backup*.ts, src/routes/**/backup*.tsx
+alwaysApply: false
+---
+---
+description: "Supabase backup tool specific guidelines and patterns"
+globs: [src/db/**/*.ts, src/server/**/backup*.ts, src/routes/**/backup*.tsx]
+alwaysApply: false
+---
+
+# Supabase Backup Tool Guidelines
+
+When working on backup functionality:
+
+## Database Operations
+- Use Drizzle ORM with SQLite for local storage
+- Encrypt sensitive credentials using Node.js crypto
+- Implement backup verification and integrity checks
+- Follow tRPC patterns for backup API endpoints
+
+## CLI Integration
+- Use child_process for Supabase CLI commands
+- Parse CLI output safely with proper error handling
+- Implement progress tracking for long-running operations
+
+## File Management
+- Organize backups in structured directories
+- Implement retention policies and cleanup
+- Use compression for backup files
+- Validate backup integrity after creation
+

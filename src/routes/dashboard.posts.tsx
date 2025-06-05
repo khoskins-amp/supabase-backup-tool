@@ -6,13 +6,13 @@ import {
   createFileRoute,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { trpc } from '../router'
+import { trpc } from '@/lib/trpc'
 import { Spinner } from './-components/spinner'
 
 export const Route = createFileRoute('/dashboard/posts')({
   errorComponent: () => 'Oh crap!',
   loader: async ({ context: { trpc, queryClient } }) => {
-    await queryClient.ensureQueryData(trpc.posts.queryOptions())
+    await queryClient.ensureQueryData(trpc.posts.list.queryOptions())
     return
   },
   pendingComponent: Spinner,
@@ -20,14 +20,14 @@ export const Route = createFileRoute('/dashboard/posts')({
 })
 
 function DashboardPostsComponent() {
-  const postsQuery = useQuery(trpc.posts.queryOptions())
+  const postsQuery = useQuery(trpc.posts.list.queryOptions())
 
   const posts = postsQuery.data || []
 
   return (
     <div className="flex-1 flex">
       <div className="divide-y w-48">
-        {posts.map((post) => {
+        {posts.map((post: any) => {
           return (
             <div key={post.id}>
               <Link

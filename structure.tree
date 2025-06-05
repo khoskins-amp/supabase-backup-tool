@@ -1,0 +1,108 @@
+├── .env.example
+├── .gitignore
+├── .vscode
+│  └── settings.json
+├── app.config.js
+├── components.json
+├── config
+├── drizzle.config.ts
+├── index.html
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.mjs
+├── projectDocs
+│  └── supabase-backup-features-plan.md
+├── README.md
+├── src
+│  ├── components
+│  │  ├── app-sidebar.tsx
+│  │  ├── mode-toggle.tsx
+│  │  ├── nav-main.tsx
+│  │  ├── nav-projects.tsx
+│  │  ├── nav-user.tsx
+│  │  ├── providers
+│  │  ├── team-switcher.tsx
+│  │  ├── theme-provider.tsx
+│  │  └── ui
+│  │    ├── accordion.tsx
+│  │    ├── alert-dialog.tsx
+│  │    ├── alert.tsx
+│  │    ├── aspect-ratio.tsx
+│  │    ├── avatar.tsx
+│  │    ├── badge.tsx
+│  │    ├── breadcrumb.tsx
+│  │    ├── button.tsx
+│  │    ├── calendar.tsx
+│  │    ├── card.tsx
+│  │    ├── carousel.tsx
+│  │    ├── chart.tsx
+│  │    ├── checkbox.tsx
+│  │    ├── collapsible.tsx
+│  │    ├── command.tsx
+│  │    ├── context-menu.tsx
+│  │    ├── dialog.tsx
+│  │    ├── drawer.tsx
+│  │    ├── dropdown-menu.tsx
+│  │    ├── form.tsx
+│  │    ├── hover-card.tsx
+│  │    ├── input-otp.tsx
+│  │    ├── input.tsx
+│  │    ├── label.tsx
+│  │    ├── menubar.tsx
+│  │    ├── navigation-menu.tsx
+│  │    ├── pagination.tsx
+│  │    ├── popover.tsx
+│  │    ├── progress.tsx
+│  │    ├── radio-group.tsx
+│  │    ├── resizable.tsx
+│  │    ├── scroll-area.tsx
+│  │    ├── select.tsx
+│  │    ├── separator.tsx
+│  │    ├── sheet.tsx
+│  │    ├── sidebar.tsx
+│  │    ├── skeleton.tsx
+│  │    ├── slider.tsx
+│  │    ├── sonner.tsx
+│  │    ├── switch.tsx
+│  │    ├── table.tsx
+│  │    ├── tabs.tsx
+│  │    ├── textarea.tsx
+│  │    ├── toggle-group.tsx
+│  │    ├── toggle.tsx
+│  │    └── tooltip.tsx
+│  ├── hooks
+│  │  └── use-mobile.ts
+│  ├── lib
+│  │  ├── trpc
+│  │  │  ├── init.ts
+│  │  │  ├── query-client.ts
+│  │  │  └── routers
+│  │  │    └── index.ts
+│  │  ├── types
+│  │  │  └── index.ts
+│  │  └── utils
+│  │    ├── file-manager.ts
+│  │    ├── index.ts
+│  │    └── supabase-cli.ts
+│  ├── main.tsx
+│  ├── router.tsx
+│  ├── routes
+│  │  ├── __root.tsx
+│  │  ├── -components
+│  │  │  └── spinner.tsx
+│  │  ├── dashboard.index.tsx
+│  │  ├── dashboard.posts.$postId.tsx
+│  │  ├── dashboard.posts.index.tsx
+│  │  ├── dashboard.posts.tsx
+│  │  ├── dashboard.projects.index.tsx
+│  │  ├── dashboard.projects.new.tsx
+│  │  ├── dashboard.projects.tsx
+│  │  ├── dashboard.tsx
+│  │  └── index.tsx
+│  ├── routeTree.gen.ts
+│  └── styles.css
+├── tailwind.config.mjs
+├── trpc-server.handler.ts
+├── tsconfig.dev.json
+└── tsconfig.json

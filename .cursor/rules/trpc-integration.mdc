@@ -1,0 +1,67 @@
+---
+description: 
+globs: src/lib/trpc.ts, src/server/**/*.ts, **/*trpc*.ts,**/*Router.ts
+alwaysApply: false
+---
+---
+description: "tRPC + TanStack Query integration patterns"
+globs: [src/lib/trpc.ts, src/server/**/*.ts, **/*trpc*.ts, **/*Router.ts]
+alwaysApply: false
+---
+**Router.ts
+# tRPC + TanStack Query Integration
+
+## Client Setup Pattern
+```ts
+// src/lib/trpc.ts
+import { createTRPCContext } from '@trpc/tanstack-react-query'
+import type { AppRouter } from '../server/router'
+
+export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>()
+```
+
+## Query Usage (New Pattern)
+```tsx
+// ✅ CORRECT: Use new integration pattern
+import { useQuery } from '@tanstack/react-query'
+import { useTRPC } from '@/lib/trpc'
+
+function UserProfile() {
+  const trpc = useTRPC()
+  
+  const userQuery = useQuery(trpc.user.getById.queryOptions({ id: '1' }))
+  
+  if (userQuery.isLoading) return <div>Loading...</div>
+  if (userQuery.error) return <div>Error: {userQuery.error.message}</div>
+  
+  return <div>{userQuery.data?.name}</div>
+}
+
+// ❌ WRONG: Don't use old trpc.user.getById.useQuery
+```
+
+## Mutation Usage
+```tsx
+function UserForm() {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  
+  const createUser = useMutation(trpc.user.create.mutationOptions({
+    onSuccess: () => {
+      queryClient.invalidateQueries(trpc.user.list.queryFilter())
+    }
+  }))
+  
+  return (
+    <button onClick={() => createUser.mutate({ name: 'John' })}>
+      Create User
+    </button>
+  )
+
+
+
+
+
+
+
+}

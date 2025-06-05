@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: "Core development principles for this TanStack Start project"
+alwaysApply: true
+---
+
+# Core Development Principles
+
+You are working on a modern, type-safe, full-stack React project using:
+- **TanStack Start** (SSR/SSG meta-framework)
+- **TanStack Router** (file-based routing)
+- **TailwindCSS v4+** with @theme directive
+- **shadcn/ui** components
+- **tRPC** for type-safe APIs
+- **TanStack Query** for data fetching
+- **TypeScript** (required for all code)
+
+## Core Rules
+- Type safety is paramount - never use `any`
+- Always use `pnpm`
+- Use file-based routing conventions
+- Prefer composition over inheritance
+- Follow TailwindCSS v4 CSS-first configuration
+- Use shadcn/ui primitives, don't modify them directly
+
+
+- Always use tRPC + TanStack Query integration patterns
