@@ -11,18 +11,19 @@ export const Route = createFileRoute('/dashboard/posts/$postId')({
     showNotes: z.boolean().optional(),
     notes: z.string().optional(),
   }),
-  loader: async ({ context: { trpc, queryClient }, params: { postId } }) => {
-    await queryClient.ensureQueryData(trpc.posts.byId.queryOptions({ id: postId }))
+  loader: async ({ context: { queryClient }, params: { postId } }) => {
+    await queryClient.ensureQueryData({
+      queryKey: ['posts', 'byId', { id: postId }],
+      queryFn: () => trpc.posts.byId.query({ id: postId }),
+    })
   },
   pendingComponent: Spinner,
-  component: DashboardPostsPostIdComponent,
+  component: PostComponent,
 })
 
-function DashboardPostsPostIdComponent() {
-  const postId = Route.useParams({ select: (d) => d.postId })
-
-  const postQuery = useQuery(trpc.posts.byId.queryOptions({ id: postId }))
-  const post = postQuery.data
+function PostComponent() {
+  const { postId } = Route.useParams()
+  const postQuery = trpc.posts.byId.useQuery({ id: postId })
 
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
@@ -37,23 +38,27 @@ function DashboardPostsPostIdComponent() {
     })
   }, [notes])
 
-  if (!post) {
-    return <div>Post not found</div>
+  if (postQuery.isLoading) {
+    return <div>Loading post...</div>
+  }
+
+  if (postQuery.error) {
+    return <div>Error: {postQuery.error.message}</div>
   }
 
   return (
-    <div className="p-2 space-y-2" key={post.id}>
+    <div className="p-2 space-y-2" key={postQuery.data?.id}>
       <div className="space-y-2">
         <h2 className="font-bold text-lg">
           <input
-            defaultValue={post.id}
+            defaultValue={postQuery.data?.id}
             className="border border-opacity-50 rounded p-2 w-full"
             disabled
           />
         </h2>
         <div>
           <textarea
-            defaultValue={post.title}
+            defaultValue={postQuery.data?.title}
             rows={6}
             className="border border-opacity-50 p-2 rounded w-full"
             disabled

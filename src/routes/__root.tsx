@@ -9,12 +9,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from '@/components/theme-provider'
 
 import { Spinner } from './-components/spinner'
-import type { TRPCOptionsProxy } from '@trpc/tanstack-react-query'
-import type { AppRouter } from '../../trpc-server.handler'
 import type { QueryClient } from '@tanstack/react-query'
 
 export interface RouterAppContext {
-  trpc: TRPCOptionsProxy<AppRouter>
   queryClient: QueryClient
 }
 

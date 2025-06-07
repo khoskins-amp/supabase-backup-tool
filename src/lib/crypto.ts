@@ -3,20 +3,22 @@ import { promisify } from 'node:util';
 
 const asyncScrypt = promisify(scrypt);
 
-// Environment variable for the master encryption key
-const MASTER_KEY = process.env.ENCRYPTION_MASTER_KEY;
-
-if (!MASTER_KEY) {
-  throw new Error('ENCRYPTION_MASTER_KEY environment variable is required');
+// Lazy-load the master key to avoid import-time errors
+function getMasterKey(): string {
+  const MASTER_KEY = process.env.ENCRYPTION_MASTER_KEY;
+  
+  if (!MASTER_KEY) {
+    throw new Error('ENCRYPTION_MASTER_KEY environment variable is required');
+  }
+  
+  return MASTER_KEY;
 }
-
-// Type assertion after null check - we know it's defined at this point
-const masterKey: string = MASTER_KEY;
 
 /**
  * Derives a 32-byte encryption key from the master key using PBKDF2-like scrypt
  */
 async function deriveKey(salt: Buffer): Promise<Buffer> {
+  const masterKey = getMasterKey();
   return (await asyncScrypt(masterKey, salt, 32)) as Buffer;
 }
 

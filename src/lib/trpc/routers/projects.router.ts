@@ -26,7 +26,9 @@ export const projectsRouter = createTRPCRouter({
   // List all projects (with decrypted sensitive fields)
   list: publicProcedure.query(async () => {
     try {
+      console.log('🔍 Projects.list called - fetching from database...');
       const results = await db.select().from(projects);
+      console.log(`📊 Found ${results.length} projects in database:`, results.map(p => ({ id: p.id, name: p.name })));
       
       // Decrypt sensitive fields for each project
       const decryptedProjects = await Promise.all(
@@ -40,12 +42,13 @@ export const projectsRouter = createTRPCRouter({
         }))
       );
 
+      console.log('✅ Projects.list returning:', { success: true, count: decryptedProjects.length });
       return {
         success: true,
         data: decryptedProjects,
       };
     } catch (error) {
-      console.error('Failed to list projects:', error);
+      console.error('❌ Failed to list projects:', error);
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to list projects',

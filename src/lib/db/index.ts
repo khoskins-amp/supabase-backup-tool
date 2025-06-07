@@ -38,19 +38,26 @@ export type {
   // Backup types
   Backup,
   NewBackup,
-  BackupFormData,
-  BackupUpdateData,
+  ManualBackupFormData,
   BackupWithProject,
   BackupSummary,
   BackupProgress,
   BackupConfig,
   BackupStats,
-  CreateBackupInput,
-  UpdateBackupInput,
-  BackupConfigInput,
   BackupFilterInput,
   BackupRestoreInput,
 } from "./backups.types";
+
+export type {
+  // Backup validation types
+  CreateBackupInput,
+  CreateManualBackupInput,
+  UpdateBackupInput,
+  BackupConfigInput,
+  BackupOptionsInput,
+  StartBackupInput,
+  ValidateBackupInput,
+} from "./backups.validations";
 
 export type {
   // Job types
@@ -83,10 +90,14 @@ export {
 export {
   // Backup schemas
   createBackupSchema,
+  createManualBackupSchema,
   updateBackupSchema,
   backupConfigSchema,
+  backupOptionsSchema,
   backupFilterSchema,
   backupRestoreSchema,
+  startBackupSchema,
+  validateBackupSchema,
 } from "./backups.validations";
 
 export {

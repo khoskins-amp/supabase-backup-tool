@@ -1,7 +1,7 @@
 // Export everything tRPC-related from a single place
-export { queryClient, trpc } from './client';
+export { queryClient, trpc, trpcClient } from './client';
 export type { AppRouter } from './routers';
-export type { TRPCClient } from './client';
+export type { RouterInputs, RouterOutputs } from './client';
 
 // Re-export commonly used tRPC types
 export type { TRPCContext } from './init'; 

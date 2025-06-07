@@ -5,7 +5,7 @@ import { routeTree } from './routeTree.gen'
 
 import { Spinner } from './routes/-components/spinner'
 // Import the proper tRPC setup from our lib
-import { queryClient, trpc } from './lib/trpc'
+import { queryClient, trpc, trpcClient } from './lib/trpc/client'
 
 export function createRouter() {
   const router = createTanStackRouter({
@@ -13,7 +13,6 @@ export function createRouter() {
     scrollRestoration: true,
     defaultPreload: 'intent',
     context: {
-      trpc,
       queryClient,
     },
     defaultPendingComponent: () => (
@@ -23,9 +22,11 @@ export function createRouter() {
     ),
     Wrap: function WrapComponent({ children }) {
       return (
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        </trpc.Provider>
       )
     },
   })

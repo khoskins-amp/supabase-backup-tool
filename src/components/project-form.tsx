@@ -25,7 +25,7 @@ import {
   EyeOff
 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
-import { trpc } from '@/lib/trpc'
+import { trpc } from '@/lib/trpc/client'
 import { parseSupabaseDatabaseUrl } from '@/lib/utils'
 
 type ConnectionResult = {
@@ -134,11 +134,11 @@ export function ProjectForm({
   }, [formData.databaseUrl])
 
   // tRPC mutations using the correct pattern
-  const createProjectMutation = useMutation(trpc.projects.create.mutationOptions({
+  const createProjectMutation = trpc.projects.create.useMutation({
     onSuccess: (data) => {
       if (data.success) {
         // Invalidate projects list query
-        queryClient.invalidateQueries(trpc.projects.list.queryFilter())
+        queryClient.invalidateQueries({ queryKey: [['projects', 'list']] })
         // Call custom success handler or navigate
         if (onSuccess) {
           onSuccess()
@@ -147,9 +147,9 @@ export function ProjectForm({
         }
       }
     }
-  }))
+  })
 
-  const testConnectionMutation = useMutation(trpc.projects.testConnection.mutationOptions({
+  const testConnectionMutation = trpc.projects.testConnection.useMutation({
     onSuccess: (data) => {
       if (data.success && data.data) {
         const capabilities: string[] = []
@@ -171,13 +171,13 @@ export function ProjectForm({
         })
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       setConnectionResult({
         success: false,
         message: error.message || 'Connection test failed'
       })
     }
-  }))
+  })
 
   const handleInputChange = (field: keyof ProjectFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))

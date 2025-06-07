@@ -1,147 +1,67 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { trpc } from '@/lib/trpc'
+import { trpc } from '@/lib/trpc/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Plus, 
   Database, 
-  Calendar, 
-  HardDrive, 
   Activity,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle,
+  Calendar,
+  Download,
   Settings,
-  FileText,
-  Download
+  TrendingUp,
+  Users,
+  Server,
+  HardDrive,
+  Clock
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard/')({
-  component: DashboardIndexComponent,
+  component: DashboardComponent,
 })
 
-function DashboardIndexComponent() {
-  // Use the tRPC queries correctly
-  const projectsQuery = useQuery(trpc.projects.list.queryOptions());
-  const healthQuery = useQuery(trpc.system.getHealth.queryOptions());
-
+function DashboardComponent() {
+  // Fetch data using tRPC hooks
+  const projectsQuery = trpc.projects.list.useQuery();
+  const healthQuery = trpc.system.getHealth.useQuery();
+  
+  // Debug logging
+  console.log('🔍 Dashboard - Projects Query State:', {
+    isLoading: projectsQuery.isLoading,
+    isError: projectsQuery.isError,
+    error: projectsQuery.error,
+    data: projectsQuery.data,
+    status: projectsQuery.status
+  });
+  
+  console.log('🏥 Dashboard - Health Query State:', {
+    isLoading: healthQuery.isLoading,
+    isError: healthQuery.isError,
+    error: healthQuery.error,
+    data: healthQuery.data,
+    status: healthQuery.status
+  });
+  
   const projects = projectsQuery.data?.data || [];
-  const health = healthQuery.data?.data;
+  const systemHealth = healthQuery.data?.data;
 
-  // Skip backup queries for now until we have projects
-  const recentBackups: any[] = [];
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'running':
-        return <Clock className="h-4 w-4 text-blue-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'running':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'N/A';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
-  // Show loading state
-  if (projectsQuery.isLoading || healthQuery.isLoading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </CardHeader>
-            <CardContent className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-full"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  // Show error state
-  if (projectsQuery.error || healthQuery.error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Error loading dashboard:</strong> 
-          {projectsQuery.error?.message || healthQuery.error?.message || 'Unknown error'}
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+  // Calculate stats
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter((p: any) => p.status === 'active').length;
+  
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      {/* System Health Status */}
-      <Alert variant="destructive" className="hidden">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription className="flex items-center justify-between">
-          <div>
-            <strong>CLI Not Installed:</strong> 
-            <span className="ml-2">Please install Supabase CLI to continue</span>
-          </div>
-          <Button variant="outline" size="sm" asChild>
-            <a href="https://supabase.com/docs/guides/cli" target="_blank" rel="noopener noreferrer">
-              Install CLI
-            </a>
-          </Button>
-        </AlertDescription>
-      </Alert>
-
-      {/* Quick Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Overview of your Supabase backup operations
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link to="/dashboard/projects/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Project
-            </Link>
-          </Button>
-          <Button variant="outline" disabled>
-            <Download className="h-4 w-4 mr-2" />
-            Manual Backup
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <p className="text-muted-foreground">
+          Overview of your Supabase backup operations
+        </p>
       </div>
 
-      {/* Stats Overview */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -149,17 +69,17 @@ function DashboardIndexComponent() {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{projects.length}</div>
+            <div className="text-2xl font-bold">{totalProjects}</div>
             <p className="text-xs text-muted-foreground">
-              Configured Supabase projects
+              {activeProjects} active
             </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recent Backups</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Download className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
@@ -168,20 +88,20 @@ function DashboardIndexComponent() {
             </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
             <HardDrive className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
+            <div className="text-2xl font-bold">0 GB</div>
             <p className="text-xs text-muted-foreground">
-              Total backup storage
+              Across all projects
             </p>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">System Status</CardTitle>
@@ -189,115 +109,144 @@ function DashboardIndexComponent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {health?.status === 'healthy' ? (
-                <span className="text-green-600">Ready</span>
+              {systemHealth?.status === 'healthy' ? (
+                <Badge variant="default" className="text-sm">Healthy</Badge>
               ) : (
-                <span className="text-red-600">Error</span>
+                <Badge variant="destructive" className="text-sm">Unknown</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Status: {health?.status || 'Unknown'}
+              All systems operational
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Projects Overview */}
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Projects</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/dashboard/projects">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Manage
-                </Link>
-              </Button>
-            </div>
+            <CardTitle>Quick Actions</CardTitle>
             <CardDescription>
-              Your configured Supabase projects
+              Common tasks and operations
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {projects.length === 0 ? (
-              <div className="text-center py-6">
-                <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  No projects configured yet
-                </p>
-                <Button asChild>
-                  <Link to="/dashboard/projects/new">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Your First Project
-                  </Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {projects.slice(0, 3).map((project: any) => (
-                  <div key={project.id} className="flex items-center justify-between p-2 rounded-lg border">
-                    <div className="flex items-center gap-2">
-                      <Database className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{project.name}</span>
-                    </div>
-                    <Badge variant="secondary">{project.environment}</Badge>
-                  </div>
-                ))}
-                {projects.length > 3 && (
-                  <p className="text-xs text-muted-foreground text-center pt-2">
-                    +{projects.length - 3} more projects
-                  </p>
-                )}
-              </div>
-            )}
+          <CardContent className="space-y-2">
+            <Button asChild className="w-full justify-start">
+              <Link to="/dashboard/projects/new">
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Project
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start">
+              <Link to="/dashboard/backups/manual">
+                <Download className="h-4 w-4 mr-2" />
+                Create Manual Backup
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start">
+              <Link to="/dashboard/backups/scheduled">
+                <Calendar className="h-4 w-4 mr-2" />
+                Schedule Backup
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start">
+              <Link to="/dashboard/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Activity</CardTitle>
-              <Button variant="outline" size="sm" disabled>
-                <FileText className="h-4 w-4 mr-2" />
-                View All
-              </Button>
-            </div>
+            <CardTitle>Recent Activity</CardTitle>
             <CardDescription>
-              Latest backup operations
+              Latest backup operations and events
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {recentBackups.length === 0 ? (
-              <div className="text-center py-6">
-                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  No backup operations yet
-                </p>
-                <Button variant="outline" disabled>
-                  <Download className="h-4 w-4 mr-2" />
-                  Create Backup
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {recentBackups.map((backup: any) => (
-                  <div key={backup.id} className="flex items-center justify-between p-2 rounded-lg border">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(backup.status)}
-                      <span className="font-medium">{backup.projectName}</span>
-                    </div>
-                    <Badge className={getStatusColor(backup.status)}>
-                      {backup.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="h-8 w-8 mx-auto mb-2" />
+              <p>No recent activity</p>
+              <p className="text-sm">Backup operations will appear here</p>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Projects Overview */}
+      {projects.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Projects Overview</CardTitle>
+                <CardDescription>
+                  Your configured Supabase projects
+                </CardDescription>
+              </div>
+              <Button asChild variant="outline">
+                <Link to="/dashboard/projects">
+                  View All
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {projects.slice(0, 3).map((project: any) => (
+                <div key={project.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Database className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium">{project.name}</p>
+                      <p className="text-sm text-muted-foreground">{project.projectRef}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
+                      {project.status || 'Unknown'}
+                    </Badge>
+                    <Button size="sm" variant="outline">
+                      Backup
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Getting Started */}
+      {projects.length === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Getting Started</CardTitle>
+            <CardDescription>
+              Set up your first Supabase project backup
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Database className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">No projects configured</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Add your first Supabase project to start creating automated backups. 
+                You'll need your project URL and service key.
+              </p>
+              <Button asChild>
+                <Link to="/dashboard/projects/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Project
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

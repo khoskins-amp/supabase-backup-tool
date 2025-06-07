@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { trpc } from '@/lib/trpc'
+import { trpc } from '@/lib/trpc/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +17,7 @@ export const Route = createFileRoute('/dashboard/projects/')({
 })
 
 function ProjectsIndexComponent() {
-  const projectsQuery = useQuery(trpc.projects.list.queryOptions());
+  const projectsQuery = trpc.projects.list.useQuery();
   const projects = projectsQuery.data?.data || [];
 
   if (projectsQuery.isLoading) {

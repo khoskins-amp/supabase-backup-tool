@@ -5,22 +5,23 @@ import {
   Outlet,
   createFileRoute,
 } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { trpc } from '@/lib/trpc'
 import { Spinner } from './-components/spinner'
 
 export const Route = createFileRoute('/dashboard/posts')({
   errorComponent: () => 'Oh crap!',
-  loader: async ({ context: { trpc, queryClient } }) => {
-    await queryClient.ensureQueryData(trpc.posts.list.queryOptions())
-    return
+  loader: async ({ context: { queryClient } }) => {
+    await queryClient.ensureQueryData({
+      queryKey: ['posts', 'list'],
+      queryFn: () => trpc.posts.list.query(),
+    })
   },
   pendingComponent: Spinner,
-  component: DashboardPostsComponent,
+  component: PostsComponent,
 })
 
-function DashboardPostsComponent() {
-  const postsQuery = useQuery(trpc.posts.list.queryOptions())
+function PostsComponent() {
+  const postsQuery = trpc.posts.list.useQuery()
 
   const posts = postsQuery.data || []
 

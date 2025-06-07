@@ -1,0 +1,911 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend TypeSafe Rules
+## TanStack Start + TanStack Router + TanStack Query + tRPC
+
+## MANDATORY TYPE SAFETY PRINCIPLES
+
+**ZERO TOLERANCE for `any`, `unknown`, or untyped code**
+**ALL components, hooks, and functions must be explicitly typed**
+**USE inferred types from backend schemas - never manual definitions**
+**ALWAYS use Zod schemas from `src/lib/types` for validation**
+
+## TRPC CLIENT SETUP
+
+### Required Client Configuration
+```typescript
+// src/lib/trpc/client.ts - MANDATORY STRUCTURE (CORRECTED PATTERN)
+import { QueryClient } from '@tanstack/react-query';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import { createTRPCReact } from '@trpc/react-query';
+import superjson from 'superjson';
+import type { AppRouter } from './routers';
+
+// REQUIRED - Type-safe React hooks with TanStack Query integration
+export const trpc = createTRPCReact<AppRouter>();
+
+// Create singleton QueryClient for TanStack Start
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// REQUIRED - Export router input/output types
+export type RouterInputs = inferRouterInputs<AppRouter>;
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
+```
+
+### TanStack Start Router Integration
+```typescript
+// src/router.tsx - REQUIRED PROVIDER STRUCTURE (CORRECTED PATTERN)
+import { createRouter as createTanStackRouter } from '@tanstack/react-router';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { httpBatchLink } from '@trpc/client';
+import { routeTree } from './routeTree.gen';
+import { queryClient, trpc } from './lib/trpc';
+
+export function createRouter() {
+  const router = createTanStackRouter({
+    routeTree,
+    scrollRestoration: true,
+    defaultPreload: 'intent',
+    context: {
+      queryClient,
+    },
+    defaultPendingComponent: () => (
+      <div className="p-2 text-2xl">
+        <Spinner />
+      </div>
+    ),
+    Wrap: function WrapComponent({ children }) {
+      const [trpcClient] = useState(() =>
+        trpc.createClient({
+          links: [
+            httpBatchLink({
+              url: '/trpc', // TanStack Start endpoint
+              transformer: superjson,
+              async headers() {
+                return {
+                  // Add auth headers here if needed
+                };
+              },
+            }),
+          ],
+        }),
+      );
+
+      return (
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        </trpc.Provider>
+      );
+    },
+  });
+
+  return router;
+}
+
+// REQUIRED - Register router for type safety
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: ReturnType<typeof createRouter>;
+  }
+}
+```
+
+## REACT HOOK PATTERNS
+
+### Query Hooks with Project Types
+```typescript
+// REQUIRED - Type-safe query hooks using project schemas
+import { trpc } from '../lib/trpc';
+import type { ProjectConfig, BackupConfig } from '../lib/types';
+
+// REQUIRED - Explicitly typed parameters using project types
+export const useProject = (projectId: string) => {
+  return trpc.projects.getById.useQuery(
+    { id: projectId },
+    {
+      enabled: !!projectId,
+      staleTime: 10 * 60 * 1000,
+    }
+  );
+};
+
+// REQUIRED - Optional parameters with proper typing
+export const useProjects = (filters?: {
+  isActive?: boolean;
+  plan?: 'free' | 'pro' | 'team' | 'enterprise';
+}) => {
+  return trpc.projects.getList.useQuery(filters, {
+    keepPreviousData: true,
+  });
+};
+
+// REQUIRED - Transform data with type safety
+export const useProjectWithBackups = (projectId: string) => {
+  return trpc.projects.getWithBackups.useQuery(
+    { id: projectId },
+    {
+      enabled: !!projectId,
+      select: (data) => {
+        // data is fully typed as ProjectConfig with backups
+        return {
+          ...data,
+          hasActiveBackups: data.backups?.some(b => b.isActive) ?? false,
+          backupCount: data.backups?.length ?? 0,
+        };
+      },
+    }
+  );
+};
+
+// REQUIRED - System health check
+export const useSystemHealth = () => {
+  return trpc.system.getHealth.useQuery(undefined, {
+    refetchInterval: 30 * 1000, // 30 seconds
+    staleTime: 15 * 1000, // 15 seconds
+  });
+};
+```
+
+### Mutation Hooks with Project Types
+```typescript
+// REQUIRED - Type-safe mutation hooks using project schemas
+import type { CreateProjectInput, CreateBackupConfigInput } from '../lib/types';
+import { toast } from 'sonner';
+
+export const useCreateProject = () => {
+  const trpcContext = trpc.useContext();
+  
+  return trpc.projects.create.useMutation({
+    onSuccess: (newProject) => {
+      // newProject is typed as ProjectConfig
+      trpcContext.projects.getList.invalidate();
+      
+      // Type-safe toast notification
+      toast.success(`Created project: ${newProject.name}`);
+    },
+    onError: (error) => {
+      // error is typed as TRPCError
+      toast.error(`Failed to create project: ${error.message}`);
+    },
+  });
+};
+
+export const useUpdateProject = () => {
+  const trpcContext = trpc.useContext();
+  
+  return trpc.projects.update.useMutation({
+    onSuccess: (updatedProject, variables) => {
+      // Both parameters are fully typed
+      trpcContext.projects.getById.invalidate({ id: variables.id });
+      trpcContext.projects.getList.invalidate();
+      
+      toast.success(`Updated project: ${updatedProject.name}`);
+    },
+    onError: (error, variables) => {
+      // Type-safe error handling
+      console.error(`Failed to update project ${variables.id}:`, error);
+      toast.error(`Failed to update project: ${error.message}`);
+    },
+  });
+};
+
+export const useCreateBackupConfig = () => {
+  const trpcContext = trpc.useContext();
+  
+  return trpc.backups.createConfig.useMutation({
+    onSuccess: (newConfig) => {
+      // newConfig is typed as BackupConfig
+      trpcContext.backups.getConfigs.invalidate({ projectId: newConfig.projectId });
+      trpcContext.projects.getWithBackups.invalidate({ id: newConfig.projectId });
+      
+      toast.success(`Created backup configuration: ${newConfig.name}`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to create backup configuration: ${error.message}`);
+    },
+  });
+};
+```
+
+### Optimistic Updates with Project Types
+```typescript
+// REQUIRED - Type-safe optimistic updates
+export const useToggleProjectStatus = () => {
+  const trpcContext = trpc.useContext();
+  
+  return trpc.projects.toggleActive.useMutation({
+    onMutate: async (variables) => {
+      // variables is typed from mutation input
+      await trpcContext.projects.getById.cancel({ id: variables.id });
+      
+      const previousProject = trpcContext.projects.getById.getData({ id: variables.id });
+      
+      // Type-safe optimistic update
+      trpcContext.projects.getById.setData({ id: variables.id }, (old) => {
+        if (!old) return old;
+        return { ...old, isActive: !old.isActive };
+      });
+      
+      return { previousProject };
+    },
+    onError: (error, variables, context) => {
+      // Rollback with type safety
+      if (context?.previousProject) {
+        trpcContext.projects.getById.setData(
+          { id: variables.id },
+          context.previousProject
+        );
+      }
+      toast.error(`Failed to toggle project status: ${error.message}`);
+    },
+    onSettled: (data, error, variables) => {
+      // Refetch with type safety
+      trpcContext.projects.getById.invalidate({ id: variables.id });
+      trpcContext.projects.getList.invalidate();
+    },
+  });
+};
+```
+
+## FORM HANDLING WITH PROJECT SCHEMAS
+
+### React Hook Form Integration
+```typescript
+// REQUIRED - Type-safe form handling using project schemas
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CreateProjectInputSchema, type CreateProjectInput } from '../lib/types';
+
+interface ProjectFormProps {
+  onSubmit: (data: CreateProjectInput) => void;
+  defaultValues?: Partial<CreateProjectInput>;
+  isLoading?: boolean;
+}
+
+export const ProjectForm = ({ onSubmit, defaultValues, isLoading }: ProjectFormProps) => {
+  const form = useForm<CreateProjectInput>({
+    resolver: zodResolver(CreateProjectInputSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      supabaseUrl: '',
+      anonKey: '',
+      serviceRoleKey: '',
+      databaseUrl: '',
+      projectRef: '',
+      region: '',
+      plan: 'free',
+      isActive: true,
+      ...defaultValues,
+    },
+  });
+
+  const handleSubmit = (data: CreateProjectInput) => {
+    // data is fully typed and validated by Zod
+    onSubmit(data);
+  };
+
+  return (
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="name">Project Name</label>
+        <input
+          {...form.register('name')}
+          id="name"
+          placeholder="My Supabase Project"
+          disabled={isLoading}
+        />
+        {form.formState.errors.name && (
+          <span className="text-red-500">{form.formState.errors.name.message}</span>
+        )}
+      </div>
+      
+      <div>
+        <label htmlFor="supabaseUrl">Supabase URL</label>
+        <input
+          {...form.register('supabaseUrl')}
+          id="supabaseUrl"
+          placeholder="https://your-project.supabase.co"
+          disabled={isLoading}
+        />
+        {form.formState.errors.supabaseUrl && (
+          <span className="text-red-500">{form.formState.errors.supabaseUrl.message}</span>
+        )}
+      </div>
+      
+      {/* More fields following the same pattern */}
+      
+      <button type="submit" disabled={isLoading || !form.formState.isValid}>
+        {isLoading ? 'Creating...' : 'Create Project'}
+      </button>
+    </form>
+  );
+};
+```
+
+### Form with Mutations
+```typescript
+// REQUIRED - Combined form and mutation handling
+export const CreateProjectPage = () => {
+  const navigate = useNavigate();
+  const createProject = useCreateProject();
+  
+  const onSubmit = (data: CreateProjectInput) => {
+    createProject.mutate(data, {
+      onSuccess: (newProject) => {
+        // Type-safe success handling with TanStack Router
+        navigate({
+          to: '/projects/$projectId',
+          params: { projectId: newProject.id },
+        });
+      },
+    });
+  };
+
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Create New Project</h1>
+      <ProjectForm 
+        onSubmit={onSubmit} 
+        isLoading={createProject.isPending}
+      />
+    </div>
+  );
+};
+```
+
+## COMPONENT PATTERNS WITH PROJECT TYPES
+
+### Props Interface Requirements
+```typescript
+// REQUIRED - Explicit prop interfaces using project types
+interface ProjectCardProps {
+  project: ProjectConfig;
+  onEdit: (projectId: string) => void;
+  onDelete: (projectId: string) => void;
+  onToggleActive: (projectId: string) => void;
+  className?: string;
+}
+
+export const ProjectCard = ({ 
+  project, 
+  onEdit, 
+  onDelete, 
+  onToggleActive, 
+  className 
+}: ProjectCardProps) => {
+  return (
+    <div className={`border rounded-lg p-4 ${className}`}>
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="text-lg font-semibold">{project.name}</h3>
+        <span className={`px-2 py-1 rounded text-sm ${
+          project.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {project.isActive ? 'Active' : 'Inactive'}
+        </span>
+      </div>
+      
+      {project.description && (
+        <p className="text-gray-600 mb-3">{project.description}</p>
+      )}
+      
+      <div className="text-sm text-gray-500 mb-3">
+        <p>Plan: {project.plan}</p>
+        <p>Region: {project.region || 'Not specified'}</p>
+        <p>Created: {project.createdAt.toLocaleDateString()}</p>
+      </div>
+      
+      <div className="flex gap-2">
+        <button 
+          onClick={() => onEdit(project.id)}
+          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Edit
+        </button>
+        <button 
+          onClick={() => onToggleActive(project.id)}
+          className={`px-3 py-1 rounded ${
+            project.isActive 
+              ? 'bg-yellow-500 hover:bg-yellow-600' 
+              : 'bg-green-500 hover:bg-green-600'
+          } text-white`}
+        >
+          {project.isActive ? 'Deactivate' : 'Activate'}
+        </button>
+        <button 
+          onClick={() => onDelete(project.id)}
+          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+};
+```
+
+### Generic Component Patterns
+```typescript
+// REQUIRED - Type-safe generic components
+interface DataTableProps<T> {
+  data: T[];
+  columns: Array<{
+    key: keyof T;
+    label: string;
+    render?: (value: T[keyof T], item: T) => React.ReactNode;
+  }>;
+  onRowClick?: (item: T) => void;
+  className?: string;
+}
+
+export function DataTable<T>({ 
+  data, 
+  columns, 
+  onRowClick, 
+  className 
+}: DataTableProps<T>) {
+  return (
+    <div className={`overflow-x-auto ${className}`}>
+      <table className="min-w-full border-collapse border border-gray-300">
+        <thead>
+          <tr className="bg-gray-50">
+            {columns.map((column) => (
+              <th 
+                key={String(column.key)} 
+                className="border border-gray-300 px-4 py-2 text-left"
+              >
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, index) => (
+            <tr 
+              key={index} 
+              onClick={() => onRowClick?.(item)}
+              className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''}`}
+            >
+              {columns.map((column) => (
+                <td 
+                  key={String(column.key)} 
+                  className="border border-gray-300 px-4 py-2"
+                >
+                  {column.render 
+                    ? column.render(item[column.key], item)
+                    : String(item[column.key])
+                  }
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Usage with full type safety
+<DataTable<ProjectConfig>
+  data={projects}
+  columns={[
+    { key: 'name', label: 'Project Name' },
+    { key: 'plan', label: 'Plan' },
+    { 
+      key: 'isActive', 
+      label: 'Status',
+      render: (isActive) => (
+        <span className={`px-2 py-1 rounded text-sm ${
+          isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {isActive ? 'Active' : 'Inactive'}
+        </span>
+      )
+    },
+    { 
+      key: 'createdAt', 
+      label: 'Created',
+      render: (date) => new Date(date).toLocaleDateString()
+    },
+  ]}
+  onRowClick={(project) => {
+    // project is typed as ProjectConfig
+    navigate({ to: '/projects/$projectId', params: { projectId: project.id } });
+  }}
+  className="mt-6"
+/>
+```
+
+## TANSTACK ROUTER INTEGRATION
+
+### Route Definitions with Project Types
+```typescript
+// REQUIRED - Type-safe route definitions
+import { createFileRoute } from '@tanstack/react-router';
+import { z } from 'zod';
+
+// Route with typed search params
+export const Route = createFileRoute('/projects/')({
+  validateSearch: z.object({
+    plan: z.enum(['free', 'pro', 'team', 'enterprise']).optional(),
+    isActive: z.boolean().optional(),
+    page: z.number().min(1).default(1),
+    limit: z.number().min(1).max(100).default(10),
+  }),
+  component: ProjectsPage,
+});
+
+function ProjectsPage() {
+  const search = Route.useSearch();
+  // search is typed based on validateSearch schema
+  
+  const { data: projects, isLoading } = useProjects({
+    plan: search.plan,
+    isActive: search.isActive,
+  });
+
+  if (isLoading) return <div>Loading projects...</div>;
+
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Projects</h1>
+      {/* Component content */}
+    </div>
+  );
+}
+```
+
+### Dynamic Routes with Project Types
+```typescript
+// REQUIRED - Type-safe dynamic routes
+export const Route = createFileRoute('/projects/$projectId')({
+  params: z.object({
+    projectId: z.string().uuid('Invalid project ID'),
+  }),
+  component: ProjectDetailsPage,
+});
+
+function ProjectDetailsPage() {
+  const { projectId } = Route.useParams();
+  // projectId is typed as string and validated as UUID
+  
+  const { data: project, isLoading, error } = useProjectWithBackups(projectId);
+  
+  if (isLoading) return <div>Loading project...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!project) return <div>Project not found</div>;
+  
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">{project.name}</h1>
+      <ProjectDetails project={project} />
+    </div>
+  );
+}
+```
+
+### Route Context with tRPC
+```typescript
+// REQUIRED - Type-safe route context with beforeLoad
+export const Route = createFileRoute('/projects/$projectId/backups/')({
+  params: z.object({
+    projectId: z.string().uuid(),
+  }),
+  beforeLoad: async ({ context, params }) => {
+    // Use TanStack Query to prefetch data
+    const queryClient = context.queryClient;
+    
+    await queryClient.ensureQueryData({
+      queryKey: ['projects', 'getById', { id: params.projectId }],
+      queryFn: () => trpc.projects.getById.query({ id: params.projectId }),
+    });
+    
+    return {
+      projectId: params.projectId,
+    };
+  },
+  component: ProjectBackupsPage,
+});
+
+function ProjectBackupsPage() {
+  const { projectId } = Route.useRouteContext();
+  // projectId is typed as string
+  
+  const { data: project } = trpc.projects.getById.useQuery({ id: projectId });
+  const { data: backups } = trpc.backups.getConfigs.useQuery({ projectId });
+
+  return (
+    <div>
+      <h1>Backups for {project?.name}</h1>
+      {/* Component content */}
+    </div>
+  );
+}
+```
+
+## ERROR HANDLING WITH PROJECT TYPES
+
+### tRPC Error Handling
+```typescript
+// REQUIRED - Type-safe error handling
+import { TRPCClientError } from '@trpc/client';
+import type { AppRouter } from '../lib/trpc/routers';
+import { toast } from 'sonner';
+
+export const handleTRPCError = (error: TRPCClientError<AppRouter>) => {
+  switch (error.data?.code) {
+    case 'UNAUTHORIZED':
+      toast.error('Authentication required');
+      // Handle auth redirect if needed
+      break;
+    case 'FORBIDDEN':
+      toast.error('You do not have permission to perform this action');
+      break;
+    case 'NOT_FOUND':
+      toast.error('The requested resource was not found');
+      break;
+    case 'BAD_REQUEST':
+      if (error.data?.zodError) {
+        // Handle Zod validation errors
+        const fieldErrors = error.data.zodError.fieldErrors;
+        Object.entries(fieldErrors).forEach(([field, messages]) => {
+          if (messages) {
+            toast.error(`${field}: ${messages.join(', ')}`);
+          }
+        });
+      } else {
+        toast.error('Invalid request data');
+      }
+      break;
+    case 'INTERNAL_SERVER_ERROR':
+      toast.error('An internal server error occurred');
+      break;
+    default:
+      toast.error('An unexpected error occurred');
+      console.error('Unhandled tRPC error:', error);
+  }
+};
+
+// Usage in components
+export const ProjectActions = ({ projectId }: { projectId: string }) => {
+  const deleteProject = trpc.projects.delete.useMutation({
+    onError: handleTRPCError,
+    onSuccess: () => {
+      toast.success('Project deleted successfully');
+    },
+  });
+
+  return (
+    <button 
+      onClick={() => deleteProject.mutate({ id: projectId })}
+      disabled={deleteProject.isPending}
+    >
+      {deleteProject.isPending ? 'Deleting...' : 'Delete Project'}
+    </button>
+  );
+};
+```
+
+## LOADING STATES WITH SUSPENSE
+
+### Suspense Patterns
+```typescript
+// REQUIRED - Type-safe suspense components
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  message?: string;
+}
+
+export const LoadingSpinner = ({ 
+  size = 'md', 
+  className = '', 
+  message 
+}: LoadingSpinnerProps) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12',
+  };
+
+  return (
+    <div className={`flex flex-col items-center justify-center p-4 ${className}`}>
+      <div className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]}`} />
+      {message && <p className="mt-2 text-gray-600">{message}</p>}
+    </div>
+  );
+};
+
+// Suspense wrapper with type safety
+interface SuspenseWrapperProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  errorFallback?: React.ComponentType<{ error: Error; reset: () => void }>;
+}
+
+export const SuspenseWrapper = ({ 
+  children, 
+  fallback,
+  errorFallback: ErrorFallback 
+}: SuspenseWrapperProps) => {
+  return (
+    <ErrorBoundary fallback={ErrorFallback}>
+      <Suspense fallback={fallback ?? <LoadingSpinner message="Loading..." />}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
+```
+
+## ABSOLUTE PROHIBITIONS
+
+### Never Use These
+```typescript
+// FORBIDDEN - Any types
+const data: any = await fetch('/api/projects');
+const project: any = data.json();
+
+// FORBIDDEN - Unknown types without validation
+function handleData(data: unknown) { 
+  // Must use type guards or Zod validation
+}
+
+// FORBIDDEN - Untyped event handlers
+const handleClick = (event) => { }; // Missing React.MouseEvent type
+
+// FORBIDDEN - Untyped component props
+const MyComponent = ({ data, onSubmit }) => { }; // Missing interface
+
+// FORBIDDEN - Manual type casting without validation
+const project = data as ProjectConfig; // No runtime validation
+
+// FORBIDDEN - Ignoring tRPC types
+const { data } = trpc.projects.getById.useQuery('invalid-id');
+// Should validate ID format
+
+// FORBIDDEN - Untyped form handling
+const handleSubmit = (data) => { }; // Missing form data type
+
+// FORBIDDEN - Direct mutation without error handling
+trpc.projects.delete.useMutation(); // Missing onError handler
+
+// FORBIDDEN - Untyped router params
+const { projectId } = useParams(); // Should use Route.useParams()
+
+// FORBIDDEN - Using createTRPCOptionsProxy in client components
+// createTRPCOptionsProxy is for React Server Components only
+const trpc = createTRPCOptionsProxy({ /* config */ }); // Wrong for client-side
+```
+
+## REQUIRED PATTERNS
+
+### Type Guards with Project Schemas
+```typescript
+// REQUIRED - Use type guards for runtime checks
+import { ProjectConfigSchema, BackupConfigSchema } from '../lib/types';
+
+export const isProjectConfig = (value: unknown): value is ProjectConfig => {
+  return ProjectConfigSchema.safeParse(value).success;
+};
+
+export const isBackupConfig = (value: unknown): value is BackupConfig => {
+  return BackupConfigSchema.safeParse(value).success;
+};
+
+// Usage
+if (isProjectConfig(unknownData)) {
+  // unknownData is now typed as ProjectConfig
+  console.log(unknownData.name, unknownData.supabaseUrl);
+}
+```
+
+### Conditional Rendering with Types
+```typescript
+// REQUIRED - Type-safe conditional rendering
+interface ProjectStatusProps {
+  project: ProjectConfig | null;
+  loading: boolean;
+  error?: string;
+}
+
+export const ProjectStatus = ({ project, loading, error }: ProjectStatusProps) => {
+  if (loading) return <LoadingSpinner message="Loading project..." />;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (!project) return <div className="text-gray-500">No project found</div>;
+  
+  // project is guaranteed to be ProjectConfig type here
+  return (
+    <div className="bg-white p-4 rounded-lg shadow">
+      <h2 className="text-xl font-semibold">{project.name}</h2>
+      <p className="text-gray-600">{project.description}</p>
+      <div className="mt-2">
+        <span className={`px-2 py-1 rounded text-sm ${
+          project.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {project.isActive ? 'Active' : 'Inactive'}
+        </span>
+      </div>
+    </div>
+  );
+};
+```
+
+### Performance with Memoization
+```typescript
+// REQUIRED - Type-safe memoization
+interface ProjectListProps {
+  projects: ProjectConfig[];
+  filters: {
+    plan?: 'free' | 'pro' | 'team' | 'enterprise';
+    isActive?: boolean;
+  };
+  onFilter: (filters: ProjectListProps['filters']) => void;
+}
+
+export const ProjectList = memo<ProjectListProps>(
+  ({ projects, filters, onFilter }) => {
+    const filteredProjects = useMemo(() => {
+      return projects.filter(project => {
+        if (filters.plan && project.plan !== filters.plan) return false;
+        if (filters.isActive !== undefined && project.isActive !== filters.isActive) return false;
+        return true;
+      });
+    }, [projects, filters]);
+
+    const projectsByPlan = useMemo(() => {
+      return filteredProjects.reduce((acc, project) => {
+        acc[project.plan] = (acc[project.plan] || 0) + 1;
+        return acc;
+      }, {} as Record<ProjectConfig['plan'], number>);
+    }, [filteredProjects]);
+
+    return (
+      <div>
+        <div className="mb-4">
+          <h3>Projects by Plan:</h3>
+          {Object.entries(projectsByPlan).map(([plan, count]) => (
+            <span key={plan} className="mr-4">
+              {plan}: {count}
+            </span>
+          ))}
+        </div>
+        <DataTable data={filteredProjects} columns={projectColumns} />
+      </div>
+    );
+  }
+);
+```
+
+## KEY DIFFERENCES: createTRPCReact vs createTRPCOptionsProxy
+
+### ✅ CORRECT: createTRPCReact (Standard Client Method)
+- **Purpose**: Client-side React hooks with TanStack Query integration
+- **Execution**: Makes HTTP requests to tRPC server
+- **Use Case**: Standard React applications, client components, TanStack Start
+- **Features**: Caching, background updates, optimistic updates, React hooks
+
+### ❌ INCORRECT: createTRPCOptionsProxy (Server-Side Method)
+- **Purpose**: Server-side direct router calls for React Server Components
+- **Execution**: Direct function calls (no HTTP overhead)
+- **Use Case**: Next.js App Router server components, SSR scenarios only
+- **Features**: Zero network latency, server-side caching, data prefetching
+
+**For TanStack Start + Vite + React**: Always use `createTRPCReact` - it's the standard, well-documented approach that works with client-side rendering and TanStack Query integration.
+
+
+
+These rules ensure complete type safety across your TanStack Start frontend, eliminating runtime errors and providing excellent developer experience with full IDE support while following your project's specific patterns and schemas.

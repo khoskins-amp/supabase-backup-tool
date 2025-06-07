@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { createTRPCRouter, publicProcedure } from '../init';
 import { projectsRouter } from './projects.router';
+import { backupsRouter } from './backups.router';
 
 // System utilities router
 const systemRouter = createTRPCRouter({
   // System health check
   getHealth: publicProcedure.query(async () => {
-    return {
+    console.log('🏥 System.getHealth called');
+    const result = {
       success: true,
       data: {
         status: 'healthy',
@@ -14,6 +16,8 @@ const systemRouter = createTRPCRouter({
         database: 'connected',
       },
     };
+    console.log('✅ System.getHealth returning:', result);
+    return result;
   }),
 });
 
@@ -40,6 +44,7 @@ const postsRouter = createTRPCRouter({
 // Main application router
 export const appRouter = createTRPCRouter({
   projects: projectsRouter,
+  backups: backupsRouter,
   system: systemRouter,
   posts: postsRouter, // Keep for testing/examples
 });
